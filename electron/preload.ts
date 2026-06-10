@@ -11,6 +11,10 @@ const api: DesktopApi = {
   timerAction: (action) => ipcRenderer.invoke("timer:action", action),
   openDetail: (id: string) => ipcRenderer.invoke("detail:open", id),
   closeDetail: () => ipcRenderer.invoke("detail:close"),
+  onDetailCloseRequested: (callback: () => void) => {
+    ipcRenderer.on("detail:close-requested", callback);
+    return () => ipcRenderer.removeListener("detail:close-requested", callback);
+  },
   onStateChanged: (callback: (state: AppState) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: AppState) => callback(state);
     ipcRenderer.on("state:changed", listener);

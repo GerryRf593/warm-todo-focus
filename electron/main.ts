@@ -15,6 +15,7 @@ import { JsonStore, phaseSeconds } from "./store";
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let detailWindow: BrowserWindow | null = null;
+let closingDetailWindow = false;
 let tray: Tray | null = null;
 let store: JsonStore;
 let quitting = false;
@@ -133,8 +134,14 @@ function createDetailWindow(taskId: string) {
     }
   });
   detailWindow.loadURL(rendererUrl(`?detail=${encodeURIComponent(taskId)}`));
+  detailWindow.on("close", (event) => {
+    if (closingDetailWindow || quitting) return;
+    event.preventDefault();
+    detailWindow?.webContents.send("detail:close-requested");
+  });
   detailWindow.on("closed", () => {
     detailWindow = null;
+    closingDetailWindow = false;
   });
 }
 
@@ -263,7 +270,10 @@ function registerIpc() {
   });
   ipcMain.handle("timer:action", (_event, action) => timerAction(action));
   ipcMain.handle("detail:open", (_event, id: string) => createDetailWindow(id));
-  ipcMain.handle("detail:close", () => detailWindow?.close());
+  ipcMain.handle("detail:close", () => {
+    closingDetailWindow = true;
+    detailWindow?.close();
+  });
 }
 
 if (!hasSingleInstanceLock) {

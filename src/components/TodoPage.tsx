@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Clock3, Pause, Play, Plus, RotateCcw, Trash2, Undo2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Plus, Trash2, Undo2 } from "lucide-react";
 import { api } from "../api";
-import { formatTime, useRemainingSeconds } from "../hooks";
 import type { AppState, Task } from "../types";
+import { TimerStrip } from "./TimerStrip";
 
 export function TodoPage({ state, onOpenFocus }: { state: AppState; onOpenFocus: () => void }) {
   const [adding, setAdding] = useState(false);
@@ -10,7 +10,6 @@ export function TodoPage({ state, onOpenFocus }: { state: AppState; onOpenFocus:
   const [showCompleted, setShowCompleted] = useState(true);
   const active = state.tasks.filter((task) => !task.completed);
   const completed = state.tasks.filter((task) => task.completed);
-  const remaining = useRemainingSeconds(state);
 
   const addTask = async () => {
     if (newTitle.trim()) await api.addTask(newTitle.trim());
@@ -20,28 +19,7 @@ export function TodoPage({ state, onOpenFocus }: { state: AppState; onOpenFocus:
 
   return (
     <section className="page todo-page">
-      <div className="timer-strip">
-        <button className="timer-overview" aria-label="打开专注界面" onClick={onOpenFocus}>
-          <Clock3 size={15} />
-          <span>{state.timer.phase === "focus" ? "专注" : "休息"}</span>
-        </button>
-        <div className="timer-quick-actions">
-          <button
-            aria-label={state.timer.status === "running" ? "暂停计时" : state.timer.status === "paused" ? "继续计时" : "开始计时"}
-            title={state.timer.status === "running" ? "暂停" : state.timer.status === "paused" ? "继续" : "开始"}
-            onClick={() => api.timerAction(state.timer.status === "running" ? "pause" : "start")}
-          >
-            {state.timer.status === "running" ? <Pause size={13} /> : <Play size={13} />}
-          </button>
-          <button aria-label="重置计时" title="重置" onClick={() => api.timerAction("reset")}>
-            <RotateCcw size={13} />
-          </button>
-        </div>
-        <button className="timer-value" aria-label="打开专注界面" onClick={onOpenFocus}>
-          <strong>{formatTime(remaining)}</strong>
-          <i className={state.timer.status === "running" ? "pulse" : ""} />
-        </button>
-      </div>
+      <TimerStrip state={state} onOpenFocus={onOpenFocus} />
 
       <header className="page-heading">
         <div>

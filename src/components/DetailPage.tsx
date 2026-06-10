@@ -1,16 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, GripVertical, Plus, Trash2, X } from "lucide-react";
 import { api } from "../api";
 import type { AppState, Task, TaskStep } from "../types";
+import { TimerStrip } from "./TimerStrip";
 
 export function DetailPage({ state, taskId }: { state: AppState; taskId: string }) {
   const original = state.tasks.find((task) => task.id === taskId);
   const [draft, setDraft] = useState<Task | null>(original ? structuredClone(original) : null);
   const [dragged, setDragged] = useState<number | null>(null);
+  const [focusStepId, setFocusStepId] = useState<string | null>(null);
+  const stepInputs = useRef(new Map<string, HTMLInputElement>());
 
   useEffect(() => {
     if (original) setDraft(structuredClone(original));
   }, [original?.updatedAt]);
+
+  useEffect(() => {
+    return api.onDetailCloseRequested(async () => {
+      if (draft) await api.updateTask({ ...draft, title: draft.title.trim() || original?.title || "新待办" });
+      api.closeDetail();
+    });
+  }, [draft, original?.title]);
+
+  useEffect(() => {
+    if (!focusStepId) return;
+    const input = stepInputs.current.get(focusStepId);
+    if (!input) return;
+    input.focus();
+    input.select();
+    setFocusStepId(null);
+  }, [draft?.steps, focusStepId]);
 
   if (!draft) {
     return (
@@ -25,15 +44,23 @@ export function DetailPage({ state, taskId }: { state: AppState; taskId: string 
     setDraft({ ...draft, steps: draft.steps.map((step) => (step.id === id ? { ...step, ...patch } : step)) });
   };
 
+  const addStepAfter = (index: number) => {
+    const id = crypto.randomUUID();
+    const steps = [...draft.steps];
+    steps.splice(index + 1, 0, { id, title: "", completed: false });
+    setDraft({ ...draft, steps });
+    setFocusStepId(id);
+  };
+
   const save = async () => {
-    await api.updateTask(draft);
+    await api.updateTask({ ...draft, title: draft.title.trim() || original?.title || "新待办" });
     api.closeDetail();
   };
 
   return (
     <main className="detail-shell">
       <header className="detail-header">
-        <button className="icon-button" aria-label="返回" onClick={() => api.closeDetail()}>
+        <button className="icon-button" aria-label="返回并保存" onClick={save}>
           <ArrowLeft size={18} />
         </button>
         <strong>待办详情</strong>
@@ -50,6 +77,10 @@ export function DetailPage({ state, taskId }: { state: AppState; taskId: string 
           <Trash2 size={17} />
         </button>
       </header>
+
+      <div className="detail-timer">
+        <TimerStrip state={state} />
+      </div>
 
       <section className={`detail-title color-${draft.color}`}>
         <input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
@@ -99,9 +130,19 @@ export function DetailPage({ state, taskId }: { state: AppState; taskId: string 
               {step.completed && <Check size={12} />}
             </button>
             <input
+              ref={(element) => {
+                if (element) stepInputs.current.set(step.id, element);
+                else stepInputs.current.delete(step.id);
+              }}
               className={step.completed ? "done" : ""}
+              placeholder="输入步骤"
               value={step.title}
               onChange={(event) => updateStep(step.id, { title: event.target.value })}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                addStepAfter(index);
+              }}
             />
             <button
               className="mini-action"
@@ -114,12 +155,7 @@ export function DetailPage({ state, taskId }: { state: AppState; taskId: string 
         ))}
         <button
           className="add-step"
-          onClick={() =>
-            setDraft({
-              ...draft,
-              steps: [...draft.steps, { id: crypto.randomUUID(), title: "新步骤", completed: false }]
-            })
-          }
+          onClick={() => addStepAfter(draft.steps.length - 1)}
         >
           <Plus size={15} />
           添加步骤
@@ -128,7 +164,10 @@ export function DetailPage({ state, taskId }: { state: AppState; taskId: string 
 
       <footer className="detail-footer">
         <span>{new Date(draft.createdAt).toLocaleDateString("zh-CN")} 创建</span>
-        <button className="primary-button" disabled={!draft.title.trim()} onClick={save}>保存</button>
+        <div className="detail-footer-actions">
+          <button className="secondary-button" onClick={() => api.closeDetail()}>取消</button>
+          <button className="primary-button" onClick={save}>保存</button>
+        </div>
       </footer>
     </main>
   );

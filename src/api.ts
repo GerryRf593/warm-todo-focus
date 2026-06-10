@@ -110,6 +110,7 @@ const browserApi: DesktopApi = {
     window.location.search = "";
     return Promise.resolve();
   },
+  onDetailCloseRequested: () => () => undefined,
   onStateChanged: (callback) => {
     listeners.add(callback);
     return () => listeners.delete(callback);

@@ -58,6 +58,7 @@ export interface DesktopApi {
   timerAction: (action: "start" | "pause" | "reset" | "switch") => Promise<AppState>;
   openDetail: (id: string) => Promise<void>;
   closeDetail: () => Promise<void>;
+  onDetailCloseRequested: (callback: () => void) => () => void;
   onStateChanged: (callback: (state: AppState) => void) => () => void;
 }
 
