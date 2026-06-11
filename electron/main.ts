@@ -78,10 +78,10 @@ function refreshTray() {
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 430,
-    height: 680,
-    minWidth: 360,
-    minHeight: 520,
+    width: 390,
+    height: 620,
+    minWidth: 300,
+    minHeight: 420,
     backgroundColor: "#faf8f2",
     autoHideMenuBar: true,
     icon: iconPath("todo-desktop.ico"),
@@ -116,12 +116,10 @@ function createDetailWindow(taskId: string) {
     return;
   }
   detailWindow = new BrowserWindow({
-    width: 470,
-    height: 690,
-    minWidth: 420,
-    minHeight: 560,
-    parent: mainWindow ?? undefined,
-    modal: false,
+    width: 430,
+    height: 640,
+    minWidth: 320,
+    minHeight: 460,
     backgroundColor: "#faf8f2",
     autoHideMenuBar: true,
     icon: iconPath("todo-desktop.ico"),
