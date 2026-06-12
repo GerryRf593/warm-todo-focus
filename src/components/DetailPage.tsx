@@ -7,7 +7,8 @@ import { TimerStrip } from "./TimerStrip";
 export function DetailPage({ state, taskId }: { state: AppState; taskId: string }) {
   const original = state.tasks.find((task) => task.id === taskId);
   const [draft, setDraft] = useState<Task | null>(original ? structuredClone(original) : null);
-  const [dragged, setDragged] = useState<number | null>(null);
+  const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
+  const [dragOverStepId, setDragOverStepId] = useState<string | null>(null);
   const [focusStepId, setFocusStepId] = useState<string | null>(null);
   const stepInputs = useRef(new Map<string, HTMLInputElement>());
 
@@ -102,24 +103,34 @@ export function DetailPage({ state, taskId }: { state: AppState; taskId: string 
       <div className="steps-list">
         {draft.steps.map((step, index) => (
           <div
-            className="step-row"
+            className={`step-row ${draggedStepId === step.id ? "dragging" : ""} ${dragOverStepId === step.id ? "drag-over" : ""}`}
             key={step.id}
             onDragOver={(event) => event.preventDefault()}
-            onDrop={() => {
-              if (dragged === null || dragged === index) return;
+            onDragEnter={() => {
+              if (!draggedStepId || draggedStepId === step.id) return;
+              setDragOverStepId(step.id);
+              const from = draft.steps.findIndex((item) => item.id === draggedStepId);
+              if (from < 0 || from === index) return;
               const steps = [...draft.steps];
-              const [moved] = steps.splice(dragged, 1);
+              const [moved] = steps.splice(from, 1);
               steps.splice(index, 0, moved);
               setDraft({ ...draft, steps });
-              setDragged(null);
             }}
           >
             <span
               className="drag-handle"
               draggable
               title="拖动排序"
-              onDragStart={() => setDragged(index)}
-              onDragEnd={() => setDragged(null)}
+              onDragStart={(event) => {
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", step.id);
+                setDraggedStepId(step.id);
+                setDragOverStepId(step.id);
+              }}
+              onDragEnd={() => {
+                setDraggedStepId(null);
+                setDragOverStepId(null);
+              }}
             >
               <GripVertical size={15} />
             </span>

@@ -5,6 +5,7 @@ const api: DesktopApi = {
   getState: () => ipcRenderer.invoke("state:get"),
   addTask: (title: string) => ipcRenderer.invoke("task:add", title),
   updateTask: (task: Partial<Task> & { id: string }) => ipcRenderer.invoke("task:update", task),
+  reorderTasks: (ids: string[]) => ipcRenderer.invoke("task:reorder", ids),
   deleteTask: (id: string) => ipcRenderer.invoke("task:delete", id),
   clearCompleted: () => ipcRenderer.invoke("task:clear-completed"),
   updateSettings: (settings: Partial<AppSettings>) => ipcRenderer.invoke("settings:update", settings),

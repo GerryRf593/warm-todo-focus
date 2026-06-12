@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Plus, Trash2, Undo2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronRight, GripVertical, Plus, Trash2, Undo2 } from "lucide-react";
 import { api } from "../api";
 import type { AppState, Task } from "../types";
 import { TimerStrip } from "./TimerStrip";
@@ -8,8 +8,20 @@ export function TodoPage({ state, onOpenFocus }: { state: AppState; onOpenFocus:
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
-  const active = state.tasks.filter((task) => !task.completed);
+  const activeFromState = state.tasks.filter((task) => !task.completed);
+  const [active, setActive] = useState(activeFromState);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
+  const draggedTaskIdRef = useRef<string | null>(null);
+  const activeOrderRef = useRef(activeFromState);
   const completed = state.tasks.filter((task) => task.completed);
+
+  useEffect(() => {
+    if (!draggedTaskId) {
+      activeOrderRef.current = activeFromState;
+      setActive(activeFromState);
+    }
+  }, [state.tasks, draggedTaskId]);
 
   const addTask = async () => {
     if (newTitle.trim()) await api.addTask(newTitle.trim());
@@ -49,7 +61,38 @@ export function TodoPage({ state, onOpenFocus }: { state: AppState; onOpenFocus:
           </div>
         )}
         {active.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            dragging={draggedTaskId === task.id}
+            dragOver={dragOverTaskId === task.id}
+            onDragStart={() => {
+              draggedTaskIdRef.current = task.id;
+              setDraggedTaskId(task.id);
+              setDragOverTaskId(task.id);
+            }}
+            onDragOver={() => {
+              const draggedId = draggedTaskIdRef.current;
+              if (!draggedId || draggedId === task.id) return;
+              setDragOverTaskId(task.id);
+              setActive((tasks) => {
+                const from = tasks.findIndex((item) => item.id === draggedId);
+                const to = tasks.findIndex((item) => item.id === task.id);
+                if (from < 0 || to < 0 || from === to) return tasks;
+                const next = [...tasks];
+                const [moved] = next.splice(from, 1);
+                next.splice(to, 0, moved);
+                activeOrderRef.current = next;
+                return next;
+              });
+            }}
+            onDragEnd={() => {
+              api.reorderTasks(activeOrderRef.current.map((item) => item.id));
+              draggedTaskIdRef.current = null;
+              setDraggedTaskId(null);
+              setDragOverTaskId(null);
+            }}
+          />
         ))}
         {!adding && active.length === 0 && (
           <button className="empty-state" onClick={() => setAdding(true)}>
@@ -98,7 +141,21 @@ export function TodoPage({ state, onOpenFocus }: { state: AppState; onOpenFocus:
   );
 }
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({
+  task,
+  dragging,
+  dragOver,
+  onDragStart,
+  onDragOver,
+  onDragEnd
+}: {
+  task: Task;
+  dragging: boolean;
+  dragOver: boolean;
+  onDragStart: () => void;
+  onDragOver: () => void;
+  onDragEnd: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const pointerStart = useRef<number | null>(null);
@@ -113,7 +170,11 @@ function TaskCard({ task }: { task: Task }) {
 
   return (
     <article
-      className={`task-card color-${task.color}`}
+      className={`task-card color-${task.color} ${dragging ? "dragging" : ""} ${dragOver ? "drag-over" : ""}`}
+      onDragOver={(event) => {
+        event.preventDefault();
+        onDragOver();
+      }}
       onPointerDown={(event) => {
         if (editing) return;
         pointerStart.current = event.clientX;
@@ -131,6 +192,21 @@ function TaskCard({ task }: { task: Task }) {
         api.openDetail(task.id);
       }}
     >
+      <span
+        className="drag-handle task-drag-handle"
+        draggable={!editing}
+        title="拖动排序"
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", task.id);
+          onDragStart();
+        }}
+        onDragEnd={onDragEnd}
+        onPointerDown={(event) => event.stopPropagation()}
+        onDoubleClick={(event) => event.stopPropagation()}
+      >
+        <GripVertical size={14} />
+      </span>
       <button
         className="task-circle"
         aria-label="完成待办"

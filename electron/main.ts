@@ -232,6 +232,20 @@ function registerIpc() {
     broadcast(state);
     return state;
   });
+  ipcMain.handle("task:reorder", (_event, ids: string[]) => {
+    const state = store.update((draft) => {
+      const activeById = new Map(draft.tasks.filter((task) => !task.completed).map((task) => [task.id, task]));
+      const ordered = ids.flatMap((id) => {
+        const task = activeById.get(id);
+        if (!task) return [];
+        activeById.delete(id);
+        return [task];
+      });
+      draft.tasks = [...ordered, ...activeById.values(), ...draft.tasks.filter((task) => task.completed)];
+    });
+    broadcast(state);
+    return state;
+  });
   ipcMain.handle("task:delete", (_event, id: string) => {
     const state = store.update((draft) => {
       draft.tasks = draft.tasks.filter((task) => task.id !== id);

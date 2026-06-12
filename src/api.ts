@@ -72,6 +72,17 @@ const browserApi: DesktopApi = {
       const task = state.tasks.find((item) => item.id === patch.id);
       if (task) Object.assign(task, patch);
     }),
+  reorderTasks: (ids) =>
+    mutate((state) => {
+      const activeById = new Map(state.tasks.filter((task) => !task.completed).map((task) => [task.id, task]));
+      const ordered = ids.flatMap((id) => {
+        const task = activeById.get(id);
+        if (!task) return [];
+        activeById.delete(id);
+        return [task];
+      });
+      state.tasks = [...ordered, ...activeById.values(), ...state.tasks.filter((task) => task.completed)];
+    }),
   deleteTask: (id) => mutate((state) => void (state.tasks = state.tasks.filter((task) => task.id !== id))),
   clearCompleted: () => mutate((state) => void (state.tasks = state.tasks.filter((task) => !task.completed))),
   updateSettings: (patch) => mutate((state) => void Object.assign(state.settings, patch)),

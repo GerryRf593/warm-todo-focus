@@ -5,6 +5,7 @@ import type { AppState } from "../types";
 const apiMock = vi.hoisted(() => ({
   updateSettings: vi.fn(),
   updateTask: vi.fn(),
+  reorderTasks: vi.fn(),
   deleteTask: vi.fn(),
   clearCompleted: vi.fn(),
   addTask: vi.fn(),
@@ -88,6 +89,51 @@ describe("interaction safeguards", () => {
     expect(container.querySelector(".step-row")).not.toHaveAttribute("draggable", "true");
     expect(container.querySelector(".drag-handle")).toHaveAttribute("draggable", "true");
     expect(screen.getByDisplayValue("选择这段文字")).toBeInstanceOf(HTMLInputElement);
+  });
+
+  it("reorders active tasks while dragging and saves the new order", () => {
+    const twoTaskState: AppState = {
+      ...state,
+      tasks: [
+        state.tasks[0],
+        { ...state.tasks[0], id: "task-2", title: "第二条待办" }
+      ]
+    };
+    const { container } = render(<TodoPage state={twoTaskState} onOpenFocus={() => undefined} />);
+    const handles = container.querySelectorAll(".task-drag-handle");
+    const dataTransfer = { effectAllowed: "", setData: vi.fn() };
+
+    fireEvent.dragStart(handles[0], { dataTransfer });
+    expect(container.querySelector(".task-card.dragging")).toBeInTheDocument();
+    fireEvent.dragOver(container.querySelectorAll(".task-card")[1], { dataTransfer });
+
+    expect(container.querySelectorAll(".task-title")[0]).toHaveTextContent("第二条待办");
+    fireEvent.dragEnd(container.querySelector(".task-card.dragging .task-drag-handle")!, { dataTransfer });
+    expect(apiMock.reorderTasks).toHaveBeenCalledWith(["task-2", "task-1"]);
+  });
+
+  it("reorders steps as soon as the dragged handle enters another row", () => {
+    const twoStepState: AppState = {
+      ...state,
+      tasks: [{
+        ...state.tasks[0],
+        steps: [
+          state.tasks[0].steps[0],
+          { id: "step-2", title: "第二个步骤", completed: false }
+        ]
+      }]
+    };
+    const { container } = render(<DetailPage state={twoStepState} taskId="task-1" />);
+    const handles = container.querySelectorAll(".drag-handle");
+    const rows = container.querySelectorAll(".step-row");
+    const dataTransfer = { effectAllowed: "", setData: vi.fn() };
+
+    fireEvent.dragStart(handles[0], { dataTransfer });
+    fireEvent.dragEnter(rows[1]);
+
+    expect(container.querySelectorAll(".step-row input")[0]).toHaveValue("第二个步骤");
+    expect(container.querySelector(".step-row.dragging")).toBeInTheDocument();
+    expect(container.querySelector(".step-row.drag-over")).toBeInTheDocument();
   });
 
   it("creates and focuses the next step when Enter is pressed", () => {

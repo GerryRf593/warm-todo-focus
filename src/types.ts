@@ -52,6 +52,7 @@ export interface DesktopApi {
   getState: () => Promise<AppState>;
   addTask: (title: string) => Promise<AppState>;
   updateTask: (task: Partial<Task> & { id: string }) => Promise<AppState>;
+  reorderTasks: (ids: string[]) => Promise<AppState>;
   deleteTask: (id: string) => Promise<AppState>;
   clearCompleted: () => Promise<AppState>;
   updateSettings: (settings: Partial<AppSettings>) => Promise<AppState>;
